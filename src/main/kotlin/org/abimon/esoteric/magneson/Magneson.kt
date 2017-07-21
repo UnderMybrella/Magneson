@@ -19,9 +19,7 @@ object Magneson {
                 commands.add(Color(img.getRGB(x, y)))
 
         while (index < commands.size) {
-            val cmd = commands[index++]
-
-            when (cmd) {
+            when (commands[index++]) {
                 RegularPalette.PRINT -> print(getString())
                 RegularPalette.PRINTLN -> println(getString())
             }
@@ -37,8 +35,25 @@ object Magneson {
             return helloWorld.value
         }
 
+        if(commands[index].red == 2 && commands[index].green == 0)
+            return "${commands[index++].blue.toChar()}"
+
+        if(commands[index] == VariablePalette.START_CONCAT) {
+            index++
+            var str = ""
+            while(commands[index] != VariablePalette.STOP_CONCAT && index < commands.size)
+                str += getString()
+            index++
+            return str
+        }
+
         return "Wha?"
     }
 
     fun makeExampleImage(): BufferedImage = BufferedImage(4, 4, BufferedImage.TYPE_INT_RGB)
+
+    fun loadResource(name: String): ByteArray {
+        val backup = File("src${File.separator}main${File.separator}resources${File.separator}$name")
+        return Magneson::class.java.classLoader.getResourceAsStream(name)?.readBytes() ?: (if(backup.exists()) backup.readBytes() else throw IllegalStateException("$name could not be found"))
+    }
 }

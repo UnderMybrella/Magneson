@@ -1,7 +1,6 @@
 package org.abimon.esoteric.magneson
 
 import java.awt.Color
-import java.net.URL
 
 object VariablePalette {
     val HARD_STRINGS = mapOf(
@@ -18,7 +17,7 @@ object VariablePalette {
             Color(0, 0, 10) to "HELLO, WORLD!",
             Color(0, 0, 11) to "HELLO WORLD!",
 
-            Color(1, 0, 0) to String(URL("https://gist.githubusercontent.com/UnderMybrella/754fd84be79c8046bfbeb12457606a1b/raw/e83823e0e61c9c331ed579f89a2f5528e7b95bcd/Bee%2520Movie").openConnection().getInputStream().readBytes())
+            Color(1, 0, 0) to String(Magneson.loadResource("BEE_MOVIE_SCRIPT.txt"), Charsets.UTF_8)
     )
 
     val START_CONCAT = Color(255, 255, 254)
