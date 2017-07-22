@@ -94,6 +94,14 @@ class Magneson(var commands: MutableList<Color>,
                 RegularPalette.REMOVE_COMMANDS_ANY_BLUE -> removeBeyond(index, commands.filter { color -> color.blue != 0 })
                 RegularPalette.REMOVE_COMMANDS_ANY_ALPHA -> removeBeyond(index, commands.filter { color -> color.alpha != 0 })
 
+                RegularPalette.USE_ALPHA_FOR_COMMANDS -> {
+                    val old = commands.subList(index, commands.size).toTypedArray()
+                    val new = commands.subList(0, index)
+                    for(i in (0 until old.size / 3))
+                        new += Color(old[i * 3].alpha, old[i * 3 + 1].alpha, old[i * 3 + 2].alpha)
+                    commands = new
+                }
+
                 RegularPalette.PASS -> continue@loop
             }
         }
@@ -220,7 +228,7 @@ class Magneson(var commands: MutableList<Color>,
             println(parser.strings)
             println()
             print("Would you like to scale this image up (Y/n)? ")
-            if((readLine() ?: "n").toUpperCase().toCharArray()[0] == 'Y') {
+            if((readLine() ?: "n").toUpperCase().toCharArray().firstOrNull() ?: 'n' == 'Y') {
                 val scale = 128
                 val bigger = BufferedImage(img.width * scale, img.height * scale, BufferedImage.TYPE_INT_ARGB)
                 bigger.graphics.run {

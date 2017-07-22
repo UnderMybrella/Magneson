@@ -45,5 +45,7 @@ object RegularPalette {
     val REMOVE_COMMANDS_ANY_BLUE = Color(255, 255, 14)
     val REMOVE_COMMANDS_ANY_ALPHA = Color(255, 255, 15)
 
+    val USE_ALPHA_FOR_COMMANDS = Color(255, 255, 16)
+
     val PASS = Color(255, 255, 255)
 }
