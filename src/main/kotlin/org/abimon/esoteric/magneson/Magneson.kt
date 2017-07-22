@@ -7,7 +7,7 @@ import java.io.FileInputStream
 import java.io.InputStream
 import javax.imageio.ImageIO
 
-class Magneson(val commands: MutableList<Color>,
+class Magneson(var commands: MutableList<Color>,
                val strings: MutableMap<String, String> = HashMap<String, String>(),
                val ints: MutableMap<String, Int> = HashMap<String, Int>()) {
     var index = 0
@@ -15,8 +15,8 @@ class Magneson(val commands: MutableList<Color>,
     fun parse() {
         var loopCondition: () -> Boolean = { false }
         var startOfLoop = 0
-        loop@while (index < commands.size) {
-            when (commands[index++]) {
+        loop@ while (index < commands.size) {
+            when (commands[index++].withoutAlpha) {
                 RegularPalette.PRINT -> print(getString())
                 RegularPalette.PRINTLN -> println(getString())
 
@@ -49,7 +49,7 @@ class Magneson(val commands: MutableList<Color>,
                     startOfLoop = index
                 }
                 RegularPalette.END_LOOP -> {
-                    if(!loopCondition()) {
+                    if (!loopCondition()) {
                         loopCondition = { false }
 
                         ints["LOOP_INDEX"] = 0
@@ -62,22 +62,54 @@ class Magneson(val commands: MutableList<Color>,
                     index = startOfLoop
                 }
 
+                RegularPalette.REMOVE_COMMANDS_NOT_PART_RED -> {
+                    val r = getInteger() % 255
+                    removeBeyond(index, commands.filter { color -> color.red != r })
+                }
+                RegularPalette.REMOVE_COMMANDS_NOT_PART_GREEN -> {
+                    val g = getInteger() % 255
+                    removeBeyond(index, commands.filter { color -> color.green != g })
+                }
+                RegularPalette.REMOVE_COMMANDS_NOT_PART_BLUE -> {
+                    val b = getInteger() % 255
+                    removeBeyond(index, commands.filter { color -> color.blue != b })
+                }
+                RegularPalette.REMOVE_COMMANDS_NOT_PART_ALPHA -> {
+                    val a = getInteger() % 255
+                    removeBeyond(index, commands.filter { color -> color.alpha != a })
+                }
+
+                RegularPalette.REMOVE_COMMANDS_NOT_FULLY_RED -> removeBeyond(index, commands.filter { color -> color.red != 255 })
+                RegularPalette.REMOVE_COMMANDS_NOT_FULLY_GREEN -> removeBeyond(index, commands.filter { color -> color.green != 255 })
+                RegularPalette.REMOVE_COMMANDS_NOT_FULLY_BLUE -> removeBeyond(index, commands.filter { color -> color.blue != 255 })
+                RegularPalette.REMOVE_COMMANDS_NOT_FULLY_ALPHA -> removeBeyond(index, commands.filter { color -> color.alpha != 255 })
+
+                RegularPalette.REMOVE_COMMANDS_FULLY_RED -> removeBeyond(index, commands.filter { color -> color.red == 255 })
+                RegularPalette.REMOVE_COMMANDS_FULLY_GREEN -> removeBeyond(index, commands.filter { color -> color.green == 255 })
+                RegularPalette.REMOVE_COMMANDS_FULLY_BLUE -> removeBeyond(index, commands.filter { color -> color.blue == 255 })
+                RegularPalette.REMOVE_COMMANDS_FULLY_ALPHA -> removeBeyond(index, commands.filter { color -> color.alpha == 255 })
+
+                RegularPalette.REMOVE_COMMANDS_ANY_RED -> removeBeyond(index, commands.filter { color -> color.red != 0 })
+                RegularPalette.REMOVE_COMMANDS_ANY_GREEN -> removeBeyond(index, commands.filter { color -> color.green != 0 })
+                RegularPalette.REMOVE_COMMANDS_ANY_BLUE -> removeBeyond(index, commands.filter { color -> color.blue != 0 })
+                RegularPalette.REMOVE_COMMANDS_ANY_ALPHA -> removeBeyond(index, commands.filter { color -> color.alpha != 0 })
+
                 RegularPalette.PASS -> continue@loop
             }
         }
     }
 
     fun getString(): String {
-        val hard = StringPalette.HARD_STRINGS.entries.firstOrNull { (color) -> color == commands[index] }
-        if(hard != null) {
+        val hard = StringPalette.HARD_STRINGS.entries.firstOrNull { (color) -> color == commands[index].withoutAlpha }
+        if (hard != null) {
             index++
             return hard.value
         }
 
-        if(commands[index].red == 2 && commands[index].green == 0)
+        if (commands[index].red == 2 && commands[index].green == 0)
             return "${commands[index++].blue.toChar()}"
 
-        when(commands[index]) {
+        when (commands[index].withoutAlpha) {
             RegularPalette.GET_STRING -> {
                 index++
                 val name = getString()
@@ -95,7 +127,7 @@ class Magneson(val commands: MutableList<Color>,
             StringPalette.START_CONCAT -> {
                 index++
                 var str = ""
-                while(commands[index] != StringPalette.STOP_CONCAT && index < commands.size)
+                while (commands[index] != StringPalette.STOP_CONCAT && index < commands.size)
                     str += getString()
                 index++
                 return str
@@ -106,24 +138,24 @@ class Magneson(val commands: MutableList<Color>,
     }
 
     fun getInteger(): Int {
-        val hard = IntegerPalette.HARD_NUMBERS.entries.firstOrNull { (color) -> color == commands[index] }
-        if(hard != null) {
+        val hard = IntegerPalette.HARD_NUMBERS.entries.firstOrNull { (color) -> color == commands[index].withoutAlpha }
+        if (hard != null) {
             index++
             return hard.value
         }
 
         //Powers of 2
-        if(commands[index].red == 0 && commands[index].green == 1) {
+        if (commands[index].red == 0 && commands[index].green == 1) {
             val times = commands[index++].blue
-            return Math.pow(2.0, (if(times == 255) ints["LOOP_INDEX"] ?: times else times).toDouble()).toInt()
+            return Math.pow(2.0, (if (times == 255) ints["LOOP_INDEX"] ?: times else times).toDouble()).toInt()
         }
 
         //Fibbonacci
-        if(commands[index].red == 0 && commands[index].green == 2) {
+        if (commands[index].red == 0 && commands[index].green == 2) {
             var fib = 1
             var prevFib = 0
             val times = commands[index++].blue
-            (0 until if(times == 255) ints["LOOP_INDEX"] ?: times else times).forEach {
+            (0 until if (times == 255) ints["LOOP_INDEX"] ?: times else times).forEach {
                 val tmp = fib
                 fib += prevFib
                 prevFib = tmp
@@ -132,10 +164,10 @@ class Magneson(val commands: MutableList<Color>,
             return fib
         }
 
-        if(commands[index].red == 1)
+        if (commands[index].red == 1)
             return (commands[index].green * 256) + commands[index++].blue
 
-        when(commands[index]) {
+        when (commands[index].withoutAlpha) {
             RegularPalette.GET_STRING -> {
                 index++
                 val name = getString()
@@ -148,13 +180,13 @@ class Magneson(val commands: MutableList<Color>,
                 return str.toIntOrNull() ?: throw IllegalStateException("$str cannot be converted to an int")
             }
             RegularPalette.LENGTH_STRING -> {
-                index ++
+                index++
                 return getString().length
             }
             IntegerPalette.START_CONCAT -> {
                 index++
                 var str = ""
-                while(commands[index] != IntegerPalette.STOP_CONCAT && index < commands.size)
+                while (commands[index] != IntegerPalette.STOP_CONCAT && index < commands.size)
                     str += getInteger()
                 index++
                 return str.toInt()
@@ -164,16 +196,21 @@ class Magneson(val commands: MutableList<Color>,
         return 0
     }
 
+    fun removeBeyond(indexBeyond: Int, removing: Collection<Color>) {
+        val distinct = removing.map { it.rgb }.distinct().toIntArray()
+        commands = commands.filterIndexed { indexFilter, color -> indexFilter <= indexBeyond || !distinct.contains(color.rgb) }.toMutableList()
+    }
+
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
             System.setProperty("java.awt.headless", "true")
-            val img = Magneson.loadResourceAsStream(args.firstOrNull() ?: "example.png").use { ImageIO.read(it) }
+            val img = Magneson.loadResourceAsStream(args.firstOrNull() ?: readLine()?.run { if (this.isBlank()) null else this } ?: "example.png").use { ImageIO.read(it) }
             val commands = ArrayList<Color>()
 
             for (y in 0 until img.height)
                 for (x in 0 until img.width)
-                    commands.add(Color(img.getRGB(x, y)))
+                    commands.add(Color(img.getRGB(x, y), img.colorModel.hasAlpha()))
 
             val parser = Magneson(commands)
             parser.parse()
@@ -181,28 +218,35 @@ class Magneson(val commands: MutableList<Color>,
             println("Done")
             println()
             println(parser.strings)
-            val scale = 128
-            val bigger = BufferedImage(img.width * scale, img.height * scale, BufferedImage.TYPE_INT_ARGB)
-            bigger.graphics.run {
-                for(x in 0 until img.width)
-                    for(y in 0 until img.height) {
-                        color = Color(img.getRGB(x, y))
-                        fillRect(x * scale, y * scale, scale, scale)
-                    }
-                dispose()
-            }
+            println()
+            print("Would you like to scale this image up (Y/n)? ")
+            if((readLine() ?: "n").toUpperCase().toCharArray()[0] == 'Y') {
+                val scale = 128
+                val bigger = BufferedImage(img.width * scale, img.height * scale, BufferedImage.TYPE_INT_ARGB)
+                bigger.graphics.run {
+                    for (x in 0 until img.width)
+                        for (y in 0 until img.height) {
+                            color = Color(img.getRGB(x, y), img.colorModel.hasAlpha())
+                            fillRect(x * scale, y * scale, scale, scale)
+                        }
+                    dispose()
+                }
 
-            ImageIO.write(bigger, "PNG", File("ran_big.png"))
+                ImageIO.write(bigger, "PNG", File("ran_big.png"))
+            }
         }
 
         fun loadResource(name: String): ByteArray {
             val backup = File("src${File.separator}main${File.separator}resources${File.separator}$name")
-            return Magneson::class.java.classLoader.getResourceAsStream(name)?.readBytes() ?: (if(backup.exists()) backup.readBytes() else if(File(name).exists()) File(name).readBytes() else throw IllegalStateException("$name could not be found"))
+            return Magneson::class.java.classLoader.getResourceAsStream(name)?.readBytes() ?: (if (backup.exists()) backup.readBytes() else if (File(name).exists()) File(name).readBytes() else throw IllegalStateException("$name could not be found"))
         }
 
         fun loadResourceAsStream(name: String): InputStream {
             val backup = File("src${File.separator}main${File.separator}resources${File.separator}$name")
-            return Magneson::class.java.classLoader.getResourceAsStream(name) ?: (if(backup.exists()) FileInputStream(backup) else if(File(name).exists()) FileInputStream(File(name)) else throw IllegalStateException("$name could not be found"))
+            return Magneson::class.java.classLoader.getResourceAsStream(name) ?: (if (backup.exists()) FileInputStream(backup) else if (File(name).exists()) FileInputStream(File(name)) else throw IllegalStateException("$name could not be found"))
         }
+
+        val Color.withoutAlpha: Color
+            get() = Color(red, green, blue)
     }
 }
