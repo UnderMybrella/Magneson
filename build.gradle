@@ -22,7 +22,7 @@ plugins {
 
 apply plugin: 'kotlin'
 
-mainClassName = "org.abimon.esoteric.magneson.MainKt"
+mainClassName = "org.abimon.esoteric.magneson.Magneson"
 
 sourceCompatibility = 1.8
 
@@ -32,6 +32,7 @@ repositories {
 
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib-jre8:$kotlin_version"
+    compile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
     testCompile group: 'junit', name: 'junit', version: '4.12'
 }
 

@@ -6,15 +6,19 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.InputStream
 import javax.imageio.ImageIO
+import kotlin.reflect.KTypeProjection
+import kotlin.reflect.full.createType
 
 class Magneson(var commands: MutableList<Color>,
-               val strings: MutableMap<String, String> = HashMap<String, String>(),
-               val ints: MutableMap<String, Int> = HashMap<String, Int>()) {
+               val vars: VariableStack = VariableStack()) {
     var index = 0
     var nestedLayer = 0
     var waitingFor: ((Color) -> Boolean)? = null
 
     val flags = HashMap<String, Boolean>()
+
+    val STRING_LIST_TYPE = List::class.createType(listOf(KTypeProjection.invariant(String::class.createType())))
+    val INT_LIST_TYPE = List::class.createType(listOf(KTypeProjection.invariant(Int::class.createType())))
 
     fun parse() {
         var loopCondition: () -> Boolean = { false }
@@ -38,63 +42,63 @@ class Magneson(var commands: MutableList<Color>,
                 RegularPalette.PRINT -> print(getString())
                 RegularPalette.PRINTLN -> println(getString())
 
-                RegularPalette.ASSIGN_STRING -> strings[getString()] = getString()
-                RegularPalette.ASSIGN_INT -> ints[getString()] = getInteger()
+                RegularPalette.ASSIGN_STRING -> vars[String::class, getString()] = getString()
+                RegularPalette.ASSIGN_INT -> vars[Int::class, getString()] = getInteger()
 
                 RegularPalette.GET_STRING -> {
                     val variable = getString()
-                    println(strings[variable] ?: throw IllegalStateException("No string variable by name of $variable"))
+                    println(vars[String::class, variable] ?: throw IllegalStateException("No string variable by name of $variable"))
                 }
                 RegularPalette.GET_INT -> {
                     val variable = getString()
-                    println(ints[variable] ?: throw IllegalStateException("No integer variable by name of $variable"))
+                    println(vars[Int::class, variable] ?: throw IllegalStateException("No integer variable by name of $variable"))
                 }
 
                 RegularPalette.REVERSE_STRING -> {
                     val variable = getString()
-                    strings[variable] = (strings[variable] ?: throw IllegalStateException("No string variable by name of $variable")).reversed()
+                    vars[String::class, variable] = (vars[String::class, variable] ?: throw IllegalStateException("No string variable by name of $variable")).reversed()
                 }
 
                 RegularPalette.APPEND_STRING -> {
                     val variable = getString()
-                    strings[variable] = (strings[variable] ?: throw IllegalStateException("No string variable by name of $variable")) + getString()
+                    vars[String::class, variable] = (vars[String::class, variable] ?: throw IllegalStateException("No string variable by name of $variable")) + getString()
                 }
 
                 RegularPalette.PREPEND_STRING -> {
                     val variable = getString()
-                    strings[variable] = getString() + (strings[variable] ?: throw IllegalStateException("No string variable by name of $variable"))
+                    vars[String::class, variable] = getString() + (vars[String::class, variable] ?: throw IllegalStateException("No string variable by name of $variable"))
                 }
 
                 RegularPalette.ADD_INT -> {
                     val variable = getString()
-                    ints[variable] = (ints[variable] ?: throw IllegalStateException("No integer variable by name of $variable")) + getInteger()
+                    vars[Int::class, variable] = (vars[Int::class, variable] ?: throw IllegalStateException("No integer variable by name of $variable")) + getInteger()
                 }
 
                 RegularPalette.SUB_INT -> {
                     val variable = getString()
-                    ints[variable] = (ints[variable] ?: throw IllegalStateException("No integer variable by name of $variable")) - getInteger()
+                    vars[Int::class, variable] = (vars[Int::class, variable] ?: throw IllegalStateException("No integer variable by name of $variable")) - getInteger()
                 }
 
                 RegularPalette.MULTIPLY_INT -> {
                     val variable = getString()
-                    ints[variable] = (ints[variable] ?: throw IllegalStateException("No integer variable by name of $variable")) * getInteger()
+                    vars[Int::class, variable] = (vars[Int::class, variable] ?: throw IllegalStateException("No integer variable by name of $variable")) * getInteger()
                 }
 
                 RegularPalette.DIVIDE_INT -> {
                     val variable = getString()
-                    ints[variable] = (ints[variable] ?: throw IllegalStateException("No integer variable by name of $variable")) / getInteger()
+                    vars[Int::class, variable] = (vars[Int::class, variable] ?: throw IllegalStateException("No integer variable by name of $variable")) / getInteger()
                 }
 
                 RegularPalette.REMAINDER_INT -> {
                     val variable = getString()
-                    ints[variable] = (ints[variable] ?: throw IllegalStateException("No integer variable by name of $variable")) % getInteger()
+                    vars[Int::class, variable] = (vars[Int::class, variable] ?: throw IllegalStateException("No integer variable by name of $variable")) % getInteger()
                 }
 
                 RegularPalette.START_LOOP -> {
                     val currentLayer = nestedLayer
-                    ints["LOOP_${currentLayer}_INDEX"] = 0
-                    ints["LOOP_${currentLayer}_LIMIT"] = getInteger() - 1
-                    loopCondition = { ints.containsKey("LOOP_${currentLayer}_INDEX") && ints.containsKey("LOOP_${currentLayer}_LIMIT") && ints["LOOP_${currentLayer}_INDEX"]!! < ints["LOOP_${currentLayer}_LIMIT"]!! }
+                    vars[Int::class, "LOOP_${currentLayer}_INDEX"] = 0
+                    vars[Int::class, "LOOP_${currentLayer}_LIMIT"] = getInteger() - 1
+                    loopCondition = { vars[Int::class]?.containsKey("LOOP_${currentLayer}_INDEX") ?: false && vars[Int::class]?.containsKey("LOOP_${currentLayer}_LIMIT") ?: false && vars[Int::class, "LOOP_${currentLayer}_INDEX"]!! < vars[Int::class, "LOOP_${currentLayer}_LIMIT"]!! }
                     startOfLoop = index
                 }
                 RegularPalette.END_LOOP -> {
@@ -102,14 +106,14 @@ class Magneson(var commands: MutableList<Color>,
                     if (!loopCondition()) {
                         loopCondition = { false }
 
-                        ints["LOOP_${currentLayer}_INDEX"] = 0
-                        ints["LOOP_${currentLayer}_LIMIT"] = 0
+                        vars[Int::class, "LOOP_${currentLayer}_INDEX"] = 0
+                        vars[Int::class, "LOOP_${currentLayer}_LIMIT"] = 0
 
                         nestedLayer--
                         continue@loop
                     }
 
-                    ints["LOOP_${currentLayer}_INDEX"] = (ints["LOOP_${currentLayer}_INDEX"] ?: 0) + 1
+                    vars[Int::class, "LOOP_${currentLayer}_INDEX"] = (vars[Int::class, "LOOP_${currentLayer}_INDEX"] ?: 0) + 1
                     index = startOfLoop
                 }
                 RegularPalette.BREAK_LOOP -> {
@@ -204,13 +208,13 @@ class Magneson(var commands: MutableList<Color>,
                 index++
                 val name = getString()
 
-                return strings[name] ?: throw IllegalStateException("No string variable by name of $name")
+                return vars[String::class, name] ?: throw IllegalStateException("No string variable by name of $name")
             }
             RegularPalette.GET_INT -> {
                 index++
                 val name = getString()
 
-                return "${ints[name] ?: throw IllegalStateException("No integer variable by name of $name")}"
+                return "${vars[Int::class, name] ?: throw IllegalStateException("No integer variable by name of $name")}"
             }
             RegularPalette.REVERSE_STRING -> {
                 index++
@@ -249,7 +253,7 @@ class Magneson(var commands: MutableList<Color>,
         //Powers of 2
         if (commands[index].red == 2 && commands[index].green == 1) {
             val times = commands[index++].blue
-            return Math.pow(2.0, (if (times == 255) ints["LOOP_INDEX"] ?: times else times).toDouble()).toInt()
+            return Math.pow(2.0, (if (times == 255) vars[Int::class, "LOOP_INDEX"] ?: times else times).toDouble()).toInt()
         }
 
         //Fibbonacci
@@ -257,7 +261,7 @@ class Magneson(var commands: MutableList<Color>,
             var fib = 1
             var prevFib = 0
             val times = commands[index++].blue
-            (0 until if (times == 255) ints["LOOP_INDEX"] ?: times else times).forEach {
+            (0 until if (times == 255) vars[Int::class, "LOOP_INDEX"] ?: times else times).forEach {
                 val tmp = fib
                 fib += prevFib
                 prevFib = tmp
@@ -274,13 +278,13 @@ class Magneson(var commands: MutableList<Color>,
                 index++
                 val name = getString()
 
-                return (strings[name] ?: throw IllegalStateException("No string variable by name of $name")).toIntOrNull() ?: throw IllegalStateException("String variable $name with value ${strings[name]} cannot be converted to an int")
+                return (vars[String::class, name] ?: throw IllegalStateException("No string variable by name of $name")).toIntOrNull() ?: throw IllegalStateException("String variable $name with value ${vars[String::class, name]} cannot be converted to an int")
             }
             RegularPalette.GET_INT -> {
                 index++
                 val name = getString()
 
-                return ints[name] ?: throw IllegalStateException("No integer variable by name of $name")
+                return vars[Int::class, name] ?: throw IllegalStateException("No integer variable by name of $name")
             }
             RegularPalette.REVERSE_STRING -> {
                 index++
@@ -334,8 +338,6 @@ class Magneson(var commands: MutableList<Color>,
 
             println("Done")
             println()
-            println(parser.strings)
-            println(parser.ints)
             println()
             print("Would you like to scale this image up (Y/n)? ")
             if((readLine() ?: "n").toUpperCase().toCharArray().firstOrNull() ?: 'n' == 'Y') {
