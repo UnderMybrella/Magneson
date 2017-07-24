@@ -17,6 +17,9 @@ object StringPalette {
             Color(0, 0, 10) to "HELLO, WORLD!",
             Color(0, 0, 11) to "HELLO WORLD!",
 
+            Color(0, 0, 12) to "Input: ",
+            Color(0, 0, 13) to "You have entered ",
+
             Color(0, 1, 0) to "VAR_1",
             Color(0, 1, 1) to "VAR_2",
             Color(0, 1, 2) to "VAR_3",
@@ -31,6 +34,8 @@ object StringPalette {
 
             Color(1, 0, 0) to String(Magneson.loadResource("BEE_MOVIE_SCRIPT.txt"), Charsets.UTF_8)
     )
+
+    val STDIN = Color(3, 0, 0)
 
     val START_CONCAT = Color(255, 255, 0)
     val STOP_CONCAT = Color(255, 255, 1)

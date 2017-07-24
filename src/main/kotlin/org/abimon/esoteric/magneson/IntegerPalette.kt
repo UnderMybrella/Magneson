@@ -7,11 +7,13 @@ object IntegerPalette {
         Color(0, 0, 0) to 0
     )
 
-    //Powers of 2 are Color(0, 1, <pow>)
+    val STDIN = Color(2, 0, 0)
 
-    //Fibbonacci numbers are Color(0, 2, <pow>)
+    //Powers of 2 are Color(2, 1, <pow>)
 
-    //Raw numbers are Color(1, g*256, r)
+    //Fibbonacci numbers are Color(2, 2, <pow>)
+
+    //Raw numbers are Color(3, g*256, r)
 
     val START_CONCAT = Color(255, 255, 0)
     val STOP_CONCAT = Color(255, 255, 1)

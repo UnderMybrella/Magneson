@@ -7,22 +7,44 @@ object RegularPalette {
     val PRINTLN = Color(0, 0, 1)
 
     val ASSIGN_STRING = Color(0, 1, 0)
+    val ASSIGN_INT = Color(0, 1, 1)
 
     val GET_STRING = Color(0, 2, 0)
+    val GET_INT = Color(0, 2, 1)
 
     val REVERSE_STRING = Color(0, 3, 0)
+    val REVERSE_INT = Color(0, 3, 1)
 
     val APPEND_STRING = Color(0, 4, 0)
+    val APPEND_INT = Color(0, 4, 1)
 
     val PREPEND_STRING = Color(0, 5, 0)
+    val PREPEND_INT = Color(0, 5, 1)
 
     val STRING_TO_INT = Color(0, 6, 0)
     val INT_TO_STRING = Color(0, 6, 1)
 
     val LENGTH_STRING = Color(0, 7, 0)
 
+    val ADD_INT = Color(0, 8, 0)
+
+    val SUB_INT = Color(0, 9, 0)
+
+    val MULTIPLY_INT = Color(0, 10, 0)
+
+    val DIVIDE_INT = Color(0, 11, 0)
+
+    val REMAINDER_INT = Color(0, 12, 0)
+
     val START_LOOP = Color(1, 0, 0)
     val END_LOOP = Color(1, 0, 1)
+    val BREAK_LOOP = Color(1, 0, 2)
+    val CONTINUE_LOOP = Color(1, 0, 3)
+
+    val IF_STRING_EQUALS = Color(1, 1, 0)
+    val IF_INT_EQUALS = Color(1, 1, 1)
+    val ELSE = Color(1, 1, 254)
+    val ENDIF = Color(1, 1, 255)
 
     //Meta Section
     val REMOVE_COMMANDS_NOT_PART_RED = Color(255, 255, 0)
@@ -47,5 +69,6 @@ object RegularPalette {
 
     val USE_ALPHA_FOR_COMMANDS = Color(255, 255, 16)
 
+    val EXIT = Color(255, 255, 254)
     val PASS = Color(255, 255, 255)
 }

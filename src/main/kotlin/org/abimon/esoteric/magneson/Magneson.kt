@@ -11,20 +11,43 @@ class Magneson(var commands: MutableList<Color>,
                val strings: MutableMap<String, String> = HashMap<String, String>(),
                val ints: MutableMap<String, Int> = HashMap<String, Int>()) {
     var index = 0
+    var nestedLayer = 0
+    var waitingFor: ((Color) -> Boolean)? = null
+
+    val flags = HashMap<String, Boolean>()
 
     fun parse() {
         var loopCondition: () -> Boolean = { false }
         var startOfLoop = 0
         loop@ while (index < commands.size) {
-            when (commands[index++].withoutAlpha) {
+            val op = commands[index++]
+
+            when(op.withoutAlpha) {
+                RegularPalette.START_LOOP -> nestedLayer++
+
+                RegularPalette.IF_INT_EQUALS -> nestedLayer++
+                RegularPalette.IF_STRING_EQUALS -> nestedLayer++
+                RegularPalette.ENDIF -> nestedLayer--
+            }
+
+            if(waitingFor != null && !waitingFor!!(op))
+                continue@loop
+            waitingFor = null
+
+            when (op.withoutAlpha) {
                 RegularPalette.PRINT -> print(getString())
                 RegularPalette.PRINTLN -> println(getString())
 
                 RegularPalette.ASSIGN_STRING -> strings[getString()] = getString()
+                RegularPalette.ASSIGN_INT -> ints[getString()] = getInteger()
 
                 RegularPalette.GET_STRING -> {
                     val variable = getString()
                     println(strings[variable] ?: throw IllegalStateException("No string variable by name of $variable"))
+                }
+                RegularPalette.GET_INT -> {
+                    val variable = getString()
+                    println(ints[variable] ?: throw IllegalStateException("No integer variable by name of $variable"))
                 }
 
                 RegularPalette.REVERSE_STRING -> {
@@ -42,25 +65,83 @@ class Magneson(var commands: MutableList<Color>,
                     strings[variable] = getString() + (strings[variable] ?: throw IllegalStateException("No string variable by name of $variable"))
                 }
 
+                RegularPalette.ADD_INT -> {
+                    val variable = getString()
+                    ints[variable] = (ints[variable] ?: throw IllegalStateException("No integer variable by name of $variable")) + getInteger()
+                }
+
+                RegularPalette.SUB_INT -> {
+                    val variable = getString()
+                    ints[variable] = (ints[variable] ?: throw IllegalStateException("No integer variable by name of $variable")) - getInteger()
+                }
+
+                RegularPalette.MULTIPLY_INT -> {
+                    val variable = getString()
+                    ints[variable] = (ints[variable] ?: throw IllegalStateException("No integer variable by name of $variable")) * getInteger()
+                }
+
+                RegularPalette.DIVIDE_INT -> {
+                    val variable = getString()
+                    ints[variable] = (ints[variable] ?: throw IllegalStateException("No integer variable by name of $variable")) / getInteger()
+                }
+
+                RegularPalette.REMAINDER_INT -> {
+                    val variable = getString()
+                    ints[variable] = (ints[variable] ?: throw IllegalStateException("No integer variable by name of $variable")) % getInteger()
+                }
+
                 RegularPalette.START_LOOP -> {
-                    ints["LOOP_INDEX"] = 0
-                    ints["LOOP_LIMIT"] = getInteger() - 1
-                    loopCondition = { ints.containsKey("LOOP_INDEX") && ints.containsKey("LOOP_LIMIT") && ints["LOOP_INDEX"]!! < ints["LOOP_LIMIT"]!! }
+                    val currentLayer = nestedLayer
+                    ints["LOOP_${currentLayer}_INDEX"] = 0
+                    ints["LOOP_${currentLayer}_LIMIT"] = getInteger() - 1
+                    loopCondition = { ints.containsKey("LOOP_${currentLayer}_INDEX") && ints.containsKey("LOOP_${currentLayer}_LIMIT") && ints["LOOP_${currentLayer}_INDEX"]!! < ints["LOOP_${currentLayer}_LIMIT"]!! }
                     startOfLoop = index
                 }
                 RegularPalette.END_LOOP -> {
+                    val currentLayer = nestedLayer
                     if (!loopCondition()) {
                         loopCondition = { false }
 
-                        ints["LOOP_INDEX"] = 0
-                        ints["LOOP_LIMIT"] = 0
+                        ints["LOOP_${currentLayer}_INDEX"] = 0
+                        ints["LOOP_${currentLayer}_LIMIT"] = 0
 
+                        nestedLayer--
                         continue@loop
                     }
 
-                    ints["LOOP_INDEX"] = (ints["LOOP_INDEX"] ?: 0) + 1
+                    ints["LOOP_${currentLayer}_INDEX"] = (ints["LOOP_${currentLayer}_INDEX"] ?: 0) + 1
                     index = startOfLoop
                 }
+                RegularPalette.BREAK_LOOP -> {
+                    loopCondition = { false }
+                    waitFor(RegularPalette.END_LOOP)
+                    continue@loop
+                }
+
+                RegularPalette.IF_STRING_EQUALS -> {
+                    val currentNest = nestedLayer
+                    if(getString() != getString())
+                        waitingFor = { nestedLayer <= currentNest && (it.withoutAlpha == RegularPalette.ELSE || it.withoutAlpha == RegularPalette.ENDIF) }
+                    else
+                        flags["RUNNING_IF_$nestedLayer"] = true
+                }
+                RegularPalette.IF_INT_EQUALS -> {
+                    val currentNest = nestedLayer
+                    val a = getInteger()
+                    val b = getInteger()
+                    if(a != b)
+                        waitingFor = { nestedLayer <= currentNest && (it.withoutAlpha == RegularPalette.ELSE || it.withoutAlpha == RegularPalette.ENDIF) }
+                    else
+                        flags["RUNNING_IF_$nestedLayer"] = true
+                }
+                RegularPalette.ELSE -> {
+                    val currentNest = nestedLayer
+                    if(flags["RUNNING_IF_$nestedLayer"] ?: false)
+                        waitingFor = { nestedLayer <= currentNest && it.withoutAlpha == RegularPalette.ENDIF }
+                    else
+                        flags["RUNNING_IF_$nestedLayer"] = true
+                }
+                RegularPalette.ENDIF -> flags["RUNNING_IF_$nestedLayer"] = false
 
                 RegularPalette.REMOVE_COMMANDS_NOT_PART_RED -> {
                     val r = getInteger() % 255
@@ -102,6 +183,7 @@ class Magneson(var commands: MutableList<Color>,
                     commands = new
                 }
 
+                RegularPalette.EXIT -> return
                 RegularPalette.PASS -> continue@loop
             }
         }
@@ -124,6 +206,12 @@ class Magneson(var commands: MutableList<Color>,
 
                 return strings[name] ?: throw IllegalStateException("No string variable by name of $name")
             }
+            RegularPalette.GET_INT -> {
+                index++
+                val name = getString()
+
+                return "${ints[name] ?: throw IllegalStateException("No integer variable by name of $name")}"
+            }
             RegularPalette.REVERSE_STRING -> {
                 index++
                 return getString().reversed()
@@ -132,6 +220,12 @@ class Magneson(var commands: MutableList<Color>,
                 index++
                 return "${getInteger()}"
             }
+
+            StringPalette.STDIN -> {
+                index++
+                return readLine() ?: ""
+            }
+
             StringPalette.START_CONCAT -> {
                 index++
                 var str = ""
@@ -142,9 +236,9 @@ class Magneson(var commands: MutableList<Color>,
             }
         }
 
+        index++
         return ""
     }
-
     fun getInteger(): Int {
         val hard = IntegerPalette.HARD_NUMBERS.entries.firstOrNull { (color) -> color == commands[index].withoutAlpha }
         if (hard != null) {
@@ -153,13 +247,13 @@ class Magneson(var commands: MutableList<Color>,
         }
 
         //Powers of 2
-        if (commands[index].red == 0 && commands[index].green == 1) {
+        if (commands[index].red == 2 && commands[index].green == 1) {
             val times = commands[index++].blue
             return Math.pow(2.0, (if (times == 255) ints["LOOP_INDEX"] ?: times else times).toDouble()).toInt()
         }
 
         //Fibbonacci
-        if (commands[index].red == 0 && commands[index].green == 2) {
+        if (commands[index].red == 2 && commands[index].green == 2) {
             var fib = 1
             var prevFib = 0
             val times = commands[index++].blue
@@ -172,7 +266,7 @@ class Magneson(var commands: MutableList<Color>,
             return fib
         }
 
-        if (commands[index].red == 1)
+        if (commands[index].red == 3)
             return (commands[index].green * 256) + commands[index++].blue
 
         when (commands[index].withoutAlpha) {
@@ -182,6 +276,12 @@ class Magneson(var commands: MutableList<Color>,
 
                 return (strings[name] ?: throw IllegalStateException("No string variable by name of $name")).toIntOrNull() ?: throw IllegalStateException("String variable $name with value ${strings[name]} cannot be converted to an int")
             }
+            RegularPalette.GET_INT -> {
+                index++
+                val name = getString()
+
+                return ints[name] ?: throw IllegalStateException("No integer variable by name of $name")
+            }
             RegularPalette.REVERSE_STRING -> {
                 index++
                 val str = getString().reversed()
@@ -190,6 +290,12 @@ class Magneson(var commands: MutableList<Color>,
             RegularPalette.LENGTH_STRING -> {
                 index++
                 return getString().length
+            }
+
+            IntegerPalette.STDIN -> {
+                index++
+                val stdin = (readLine() ?: "0")
+                return stdin.toIntOrNull() ?: throw IllegalStateException("$stdin is not an int")
             }
             IntegerPalette.START_CONCAT -> {
                 index++
@@ -207,6 +313,9 @@ class Magneson(var commands: MutableList<Color>,
     fun removeBeyond(indexBeyond: Int, removing: Collection<Color>) {
         val distinct = removing.map { it.rgb }.distinct().toIntArray()
         commands = commands.filterIndexed { indexFilter, color -> indexFilter <= indexBeyond || !distinct.contains(color.rgb) }.toMutableList()
+    }
+    fun waitFor(vararg waiting: Color) {
+        waitingFor = { curr -> curr.withoutAlpha in waiting }
     }
 
     companion object {
@@ -226,6 +335,7 @@ class Magneson(var commands: MutableList<Color>,
             println("Done")
             println()
             println(parser.strings)
+            println(parser.ints)
             println()
             print("Would you like to scale this image up (Y/n)? ")
             if((readLine() ?: "n").toUpperCase().toCharArray().firstOrNull() ?: 'n' == 'Y') {
