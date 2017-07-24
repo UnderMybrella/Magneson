@@ -9,6 +9,7 @@ import javax.imageio.ImageIO
 import kotlin.reflect.KTypeProjection
 import kotlin.reflect.full.createType
 
+@Suppress("UNCHECKED_CAST")
 class Magneson(var commands: MutableList<Color>,
                val vars: VariableStack = VariableStack()) {
     var index = 0
@@ -26,7 +27,7 @@ class Magneson(var commands: MutableList<Color>,
         loop@ while (index < commands.size) {
             val op = commands[index++]
 
-            when(op.withoutAlpha) {
+            when (op.withoutAlpha) {
                 RegularPalette.START_LOOP -> nestedLayer++
 
                 RegularPalette.IF_INT_EQUALS -> nestedLayer++
@@ -34,7 +35,7 @@ class Magneson(var commands: MutableList<Color>,
                 RegularPalette.ENDIF -> nestedLayer--
             }
 
-            if(waitingFor != null && !waitingFor!!(op))
+            if (waitingFor != null && !waitingFor!!(op))
                 continue@loop
             waitingFor = null
 
@@ -124,7 +125,7 @@ class Magneson(var commands: MutableList<Color>,
 
                 RegularPalette.IF_STRING_EQUALS -> {
                     val currentNest = nestedLayer
-                    if(getString() != getString())
+                    if (getString() != getString())
                         waitingFor = { nestedLayer <= currentNest && (it.withoutAlpha == RegularPalette.ELSE || it.withoutAlpha == RegularPalette.ENDIF) }
                     else
                         flags["RUNNING_IF_$nestedLayer"] = true
@@ -133,19 +134,39 @@ class Magneson(var commands: MutableList<Color>,
                     val currentNest = nestedLayer
                     val a = getInteger()
                     val b = getInteger()
-                    if(a != b)
+                    if (a != b)
                         waitingFor = { nestedLayer <= currentNest && (it.withoutAlpha == RegularPalette.ELSE || it.withoutAlpha == RegularPalette.ENDIF) }
                     else
                         flags["RUNNING_IF_$nestedLayer"] = true
                 }
                 RegularPalette.ELSE -> {
                     val currentNest = nestedLayer
-                    if(flags["RUNNING_IF_$nestedLayer"] ?: false)
+                    if (flags["RUNNING_IF_$nestedLayer"] ?: false)
                         waitingFor = { nestedLayer <= currentNest && it.withoutAlpha == RegularPalette.ENDIF }
                     else
                         flags["RUNNING_IF_$nestedLayer"] = true
                 }
                 RegularPalette.ENDIF -> flags["RUNNING_IF_$nestedLayer"] = false
+
+                RegularPalette.ADD_STRING_TO_LIST -> {
+                    val variable = getString()
+                    val list = (vars[STRING_LIST_TYPE, variable] as? MutableList<String> ?: ArrayList<String>())
+                    list.add(getString())
+                    vars[STRING_LIST_TYPE, variable] = list
+                }
+                RegularPalette.ADD_INT_TO_LIST -> {
+                    val variable = getString()
+                    val list = (vars[INT_LIST_TYPE, variable] as? MutableList<Int> ?: ArrayList<Int>())
+                    list.add(getInteger())
+                    vars[INT_LIST_TYPE, variable] = list
+                }
+
+                RegularPalette.GET_STRING_FROM_LIST -> {
+                    vars[String::class, getString()] = (vars[STRING_LIST_TYPE, getString()] as? MutableList<String> ?: ArrayList<String>())[getInteger(), "Hello, World!"]
+                }
+                RegularPalette.GET_INT_FROM_LIST -> {
+                    vars[Int::class, getString()] = (vars[INT_LIST_TYPE, getString()] as? MutableList<Int> ?: ArrayList<Int>())[getInteger(), 0]
+                }
 
                 RegularPalette.REMOVE_COMMANDS_NOT_PART_RED -> {
                     val r = getInteger() % 255
@@ -182,7 +203,7 @@ class Magneson(var commands: MutableList<Color>,
                 RegularPalette.USE_ALPHA_FOR_COMMANDS -> {
                     val old = commands.subList(index, commands.size).toTypedArray()
                     val new = commands.subList(0, index)
-                    for(i in (0 until old.size / 3))
+                    for (i in (0 until old.size / 3))
                         new += Color(old[i * 3].alpha, old[i * 3 + 1].alpha, old[i * 3 + 2].alpha)
                     commands = new
                 }
@@ -230,6 +251,12 @@ class Magneson(var commands: MutableList<Color>,
                 return readLine() ?: ""
             }
 
+            RegularPalette.GET_STRING_FROM_LIST -> {
+                index++
+                return (vars[STRING_LIST_TYPE, getString()] as? MutableList<String> ?: ArrayList<String>())[getInteger(), "Hello, World!"]
+            }
+
+
             StringPalette.START_CONCAT -> {
                 index++
                 var str = ""
@@ -243,6 +270,7 @@ class Magneson(var commands: MutableList<Color>,
         index++
         return ""
     }
+
     fun getInteger(): Int {
         val hard = IntegerPalette.HARD_NUMBERS.entries.firstOrNull { (color) -> color == commands[index].withoutAlpha }
         if (hard != null) {
@@ -253,7 +281,7 @@ class Magneson(var commands: MutableList<Color>,
         //Powers of 2
         if (commands[index].red == 2 && commands[index].green == 1) {
             val times = commands[index++].blue
-            return Math.pow(2.0, (if (times == 255) vars[Int::class, "LOOP_INDEX"] ?: times else times).toDouble()).toInt()
+            return Math.pow(2.0, (if (times == 255) vars[Int::class, "LOOP_${nestedLayer}_INDEX"] ?: times else times).toDouble()).toInt()
         }
 
         //Fibbonacci
@@ -261,7 +289,7 @@ class Magneson(var commands: MutableList<Color>,
             var fib = 1
             var prevFib = 0
             val times = commands[index++].blue
-            (0 until if (times == 255) vars[Int::class, "LOOP_INDEX"] ?: times else times).forEach {
+            (0 until if (times == 255) vars[Int::class, "LOOP_${nestedLayer}_INDEX"] ?: times else times).forEach {
                 val tmp = fib
                 fib += prevFib
                 prevFib = tmp
@@ -296,11 +324,37 @@ class Magneson(var commands: MutableList<Color>,
                 return getString().length
             }
 
+            RegularPalette.GET_INT_FROM_LIST -> {
+                index++
+                return (vars[INT_LIST_TYPE, getString()] as? MutableList<Int> ?: ArrayList<Int>())[getInteger(), 0]
+            }
+
             IntegerPalette.STDIN -> {
                 index++
                 val stdin = (readLine() ?: "0")
                 return stdin.toIntOrNull() ?: throw IllegalStateException("$stdin is not an int")
             }
+            IntegerPalette.LOOP_INDEX -> {
+                index++
+                return vars[Int::class, "LOOP_${nestedLayer}_INDEX"] ?: 0
+            }
+            IntegerPalette.NESTED_LAYER -> {
+                index++
+                return nestedLayer
+            }
+            IntegerPalette.PARSER_INDEX -> {
+                index++
+                return index - 1
+            }
+            IntegerPalette.SIZE_OF_STRING_LIST -> {
+                index++
+                return (vars[STRING_LIST_TYPE, getString()] as? MutableList<String> ?: ArrayList<String>()).size
+            }
+            IntegerPalette.SIZE_OF_INT_LIST -> {
+                index++
+                return (vars[INT_LIST_TYPE, getString()] as? MutableList<Int> ?: ArrayList<Int>()).size
+            }
+
             IntegerPalette.START_CONCAT -> {
                 index++
                 var str = ""
@@ -318,6 +372,7 @@ class Magneson(var commands: MutableList<Color>,
         val distinct = removing.map { it.rgb }.distinct().toIntArray()
         commands = commands.filterIndexed { indexFilter, color -> indexFilter <= indexBeyond || !distinct.contains(color.rgb) }.toMutableList()
     }
+
     fun waitFor(vararg waiting: Color) {
         waitingFor = { curr -> curr.withoutAlpha in waiting }
     }
@@ -338,9 +393,9 @@ class Magneson(var commands: MutableList<Color>,
 
             println("Done")
             println()
-            println()
+            println(parser.vars.entries)
             print("Would you like to scale this image up (Y/n)? ")
-            if((readLine() ?: "n").toUpperCase().toCharArray().firstOrNull() ?: 'n' == 'Y') {
+            if ((readLine() ?: "n").toUpperCase().toCharArray().firstOrNull() ?: 'n' == 'Y') {
                 val scale = 128
                 val bigger = BufferedImage(img.width * scale, img.height * scale, BufferedImage.TYPE_INT_ARGB)
                 bigger.graphics.run {

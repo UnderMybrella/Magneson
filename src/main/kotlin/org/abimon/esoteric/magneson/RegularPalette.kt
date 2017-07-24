@@ -36,6 +36,27 @@ object RegularPalette {
 
     val REMAINDER_INT = Color(0, 12, 0)
 
+    val ADD_STRING_TO_LIST = Color(0, 13, 0)
+    val ADD_INT_TO_LIST = Color(0, 13, 1)
+
+    val REMOVE_STRING_FROM_LIST = Color(0, 14, 0)
+    val REMOVE_INT_FROM_LIST = Color(0, 14, 1)
+
+    val GET_STRING_FROM_LIST = Color(0, 15, 0)
+    val GET_INT_FROM_LIST = Color(0, 15, 1)
+
+    val SET_STRING_IN_LIST = Color(0, 16, 0)
+    val SET_INT_IN_LIST = Color(0, 16, 1)
+
+    val REMOVE_STRING_AT_INDEX_IN_LIST = Color(0, 17, 0)
+    val REMOVE_INT_AT_INDEX_IN_LIST = Color(0, 17, 1)
+
+    val GET_FIRST_STRING_FROM_LIST = Color(0, 18, 0)
+    val GET_FIRST_INT_FROM_LIST = Color(0, 18, 1)
+
+    val REMOVE_FIRST_STRING_FROM_LIST = Color(0, 19, 0)
+    val REMOVE_FIRST_INT_FROM_LIST = Color(0, 19, 1)
+
     val START_LOOP = Color(1, 0, 0)
     val END_LOOP = Color(1, 0, 1)
     val BREAK_LOOP = Color(1, 0, 2)
