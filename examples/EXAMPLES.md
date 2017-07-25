@@ -1,4 +1,0 @@
-# Examples
-
-## Prime Checking
-
